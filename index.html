@@ -1,0 +1,663 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Docker、Linux、SQL 技術筆記，可切換 12 套編輯器配色。">
+<style>*,*::before,*::after{box-sizing:border-box}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>crystal_folder 技術筆記</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a dev notebook with three notes as editor tabs; one reading column, code in editor frames; the whole page re-tints from the chosen editor palette. */
+:root{
+  --base:#ffffff; --mantle:#f6f8fa; --crust:#eef1f4; --s0:#eaeef2; --s1:#d0d7de;
+  --text:#1f2328; --sub:#424a53; --ov:#6e7781;
+  --red:#cf222e; --peach:#bc4c00; --yellow:#9a6700; --green:#116329; --teal:#0a7a72;
+  --sky:#0550ae; --blue:#0969da; --lav:#6639ba; --mauve:#8250df; --pink:#bf3989;
+  --sans:"Noto Sans TC","Noto Sans CJK TC",system-ui,-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;
+  --serif:"Noto Serif TC","Noto Serif CJK TC","Songti TC",serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --base:#1e1e1e; --mantle:#181818; --crust:#111111; --s0:#2d2d2d; --s1:#3c3c3c;
+  --text:#d4d4d4; --sub:#b0b0b0; --ov:#808080;
+  --red:#f44747; --peach:#ce9178; --yellow:#dcdcaa; --green:#b5cea8; --teal:#4ec9b0;
+  --sky:#9cdcfe; --blue:#569cd6; --lav:#9cdcfe; --mauve:#c586c0; --pink:#d16969; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --base:#1e1e1e; --mantle:#181818; --crust:#111111; --s0:#2d2d2d; --s1:#3c3c3c;
+  --text:#d4d4d4; --sub:#b0b0b0; --ov:#808080;
+  --red:#f44747; --peach:#ce9178; --yellow:#dcdcaa; --green:#b5cea8; --teal:#4ec9b0;
+  --sky:#9cdcfe; --blue:#569cd6; --lav:#9cdcfe; --mauve:#c586c0; --pink:#d16969; color-scheme:dark}
+
+body{background:var(--base);color:var(--text);font-family:var(--sans);font-size:16px;line-height:1.8;transition:background-color .25s,color .25s}
+@media (prefers-reduced-motion:reduce){body{transition:none}}
+.rainbow{position:fixed;inset:0 0 auto;height:calc(4px + env(safe-area-inset-top,0px));z-index:10;pointer-events:none;background:linear-gradient(90deg,#0969da,#8250df,#bf3989,#bc4c00)}
+.wrap{max-width:1120px;margin:0 auto;padding-block:40px 110px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;grid-template-columns:220px minmax(0,1fr);gap:48px;align-items:start}
+.content{min-width:0;max-width:760px}
+.side{position:sticky;top:calc(28px + env(safe-area-inset-top,0px));display:grid;gap:22px;max-height:calc(100vh - 56px);overflow-y:auto;padding-right:4px}
+.brand{font-family:var(--serif);font-size:1.15rem;font-weight:700;color:var(--text)}
+.notes{display:grid;gap:2px;border-left:1px solid var(--s1)}
+.notes a{padding:6px 12px;margin-left:-1px;border-left:2px solid transparent;color:var(--sub);text-decoration:none;font-size:.95rem}
+.notes a:hover{color:var(--text)}
+.notes a[aria-current="page"]{color:var(--blue);border-left-color:var(--blue);font-weight:500}
+.toc summary{font-family:var(--mono);font-size:.74rem;letter-spacing:.08em;color:var(--ov);cursor:pointer;list-style:none;margin-bottom:8px}
+.toc summary::-webkit-details-marker{display:none}
+.toc ol{margin:0;padding:0;list-style:none;display:grid;gap:2px;counter-reset:toc}
+.toc li{counter-increment:toc}
+.toc button{font:inherit;font-size:.88rem;line-height:1.5;text-align:left;width:100%;background:none;border:0;border-radius:6px;padding:4px 8px;color:var(--sub);cursor:pointer;display:flex;gap:8px}
+.toc button::before{content:counter(toc,decimal-leading-zero);font-family:var(--mono);font-size:.74rem;color:var(--ov);padding-top:2px}
+.toc button:hover{background:var(--s0);color:var(--text)}
+@media (max-width:860px){
+  .wrap{grid-template-columns:minmax(0,1fr);gap:28px;padding-block:28px 110px}
+  .side{position:static;max-height:none;overflow:visible;padding:0}
+  .toc{border:1px solid var(--s1);border-radius:10px;padding:10px 12px;background:var(--mantle)}
+  .toc summary{margin:0}
+  .toc[open] summary{margin-bottom:8px}
+}
+
+.view{display:grid;gap:26px;min-width:0}
+.view[hidden]{display:none!important}
+header.post{display:grid;gap:12px}
+h1{font-family:var(--serif);font-size:clamp(1.65rem,4.4vw,2.3rem);line-height:1.35;margin:0;text-wrap:balance}
+.lede{font-size:1.04rem;color:var(--sub);margin:0;max-width:62ch}
+.meta{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;font-size:.84rem;color:var(--ov)}
+.tag{font-family:var(--mono);font-size:.75rem;padding:1px 8px;border-radius:4px;background:var(--s0);color:var(--sky)}
+
+
+section.part{display:grid;gap:16px;min-width:0;scroll-margin-top:24px}
+h2{font-family:var(--serif);font-size:1.3rem;margin:18px 0 0;text-wrap:balance}
+h2 small{font-family:var(--mono);font-size:.78rem;color:var(--ov);font-weight:400;margin-right:10px}
+h3{font-size:1rem;margin:4px 0 -6px;color:var(--text)}
+p{margin:0;max-width:65ch}
+ul.pts{margin:0;padding-left:1.25em;display:grid;gap:10px;max-width:65ch}
+ul.pts li::marker{color:var(--ov)}
+ul.pts b{color:var(--text)}
+code{font-family:var(--mono);font-size:.86em;background:var(--s0);color:var(--peach);padding:1px 6px;border-radius:4px;overflow-wrap:anywhere}
+a{color:var(--blue)}
+.tip{border-left:3px solid var(--yellow);background:var(--mantle);padding:10px 14px;border-radius:0 8px 8px 0;font-size:.92rem;color:var(--sub);max-width:65ch}
+.tip b{color:var(--yellow)}
+
+.editor{border:1px solid var(--s1);border-radius:10px;overflow:hidden;background:var(--mantle);min-width:0;margin:0}
+.tabs{display:flex;align-items:stretch;justify-content:space-between;background:var(--crust);border-bottom:1px solid var(--s1);font-family:var(--mono);font-size:.78rem}
+.tabs span{padding:7px 14px;color:var(--text);background:var(--mantle);border-right:1px solid var(--s1);box-shadow:inset 0 2px 0 var(--blue)}
+.copy{font:inherit;background:none;border:0;color:var(--ov);padding:0 14px;cursor:pointer}
+.copy:hover{color:var(--text)}
+pre{margin:0;padding:14px 16px;white-space:pre-wrap;overflow-wrap:anywhere;font-family:var(--mono);font-size:.84rem;line-height:1.7;color:var(--text)}
+pre code{background:none;color:inherit;padding:0;font-size:inherit;overflow-wrap:anywhere}
+.hljs-keyword,.hljs-selector-tag,.hljs-section{color:var(--mauve)}
+.hljs-string,.hljs-regexp{color:var(--green)}
+.hljs-comment,.hljs-quote{color:var(--ov);font-style:italic}
+.hljs-number,.hljs-literal,.hljs-bullet{color:var(--peach)}
+.hljs-built_in,.hljs-type{color:var(--teal)}
+.hljs-title,.hljs-function,.hljs-title.function_{color:var(--blue)}
+.hljs-attr,.hljs-attribute,.hljs-property{color:var(--sky)}
+.hljs-variable,.hljs-template-variable{color:var(--pink)}
+.hljs-meta,.hljs-symbol{color:var(--yellow)}
+
+.table{border:1px solid var(--s1);border-radius:10px}
+table{border-collapse:collapse;width:100%;font-size:.9rem}
+th,td{padding:9px 14px;text-align:left;border-bottom:1px solid var(--s0);vertical-align:top}
+td:first-child{width:45%}
+thead th{font-family:var(--mono);font-size:.76rem;letter-spacing:.04em;color:var(--ov);font-weight:500;background:var(--mantle)}
+tbody tr:last-child td{border-bottom:0}
+
+.refs{border-top:1px solid var(--s1);padding-top:20px;display:grid;gap:8px;font-size:.9rem}
+.refs h2{font-size:1rem;margin:0;font-family:var(--mono);font-weight:500;color:var(--ov);letter-spacing:.04em}
+.refs ul{margin:0;padding-left:1.2em;display:grid;gap:4px}
+
+.theme-btn{position:fixed;right:calc(16px + env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:20;height:46px;padding:0 16px 0 13px;border-radius:999px;border:1px solid var(--s1);background:var(--mantle);color:var(--mauve);display:flex;align-items:center;gap:8px;cursor:pointer;font:inherit;font-size:.86rem;box-shadow:0 6px 20px rgba(0,0,0,.22)}
+.theme-btn span{color:var(--text)}
+.theme-btn:focus-visible,.theme-menu button:focus-visible,a:focus-visible,.toc button:focus-visible,.copy:focus-visible{outline:2px solid var(--mauve);outline-offset:2px}
+.theme-menu{position:fixed;right:calc(16px + env(safe-area-inset-right,0px));bottom:calc(72px + env(safe-area-inset-bottom,0px));z-index:20;background:var(--mantle);border:1px solid var(--s1);border-radius:12px;padding:6px;display:grid;gap:2px;width:min(240px,calc(100vw - 32px));max-height:min(70vh,560px);overflow:auto;box-shadow:0 12px 32px rgba(0,0,0,.3)}
+.theme-menu p{margin:6px 10px 4px;font-size:.72rem;color:var(--ov);letter-spacing:.08em;font-family:var(--mono)}
+.theme-menu button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:0;border-radius:8px;padding:7px 10px;color:var(--text);font:inherit;font-size:.88rem;cursor:pointer}
+.theme-menu button:hover{background:var(--s0)}
+.theme-menu button[aria-checked="true"]{background:var(--s0);color:var(--mauve)}
+.pv{position:relative;display:block;width:44px;height:26px;border-radius:4px;overflow:hidden;flex:none;box-shadow:inset 0 0 0 1px rgba(127,127,127,.3)}
+.pv b{position:absolute;left:0;top:0;bottom:5px;width:10px}
+.pv u{position:absolute;left:0;right:0;bottom:0;height:5px}
+.pv s{position:absolute;left:14px;height:2px;border-radius:1px}
+</style>
+</head>
+<body>
+
+
+<div class="rainbow" id="rainbow" aria-hidden="true"></div>
+<div class="wrap">
+  <aside class="side">
+    <div class="brand">技術筆記</div>
+    <nav class="notes" aria-label="筆記">
+      <a href="#docker" data-v="docker">Docker 踩坑筆記</a>
+      <a href="#linux" data-v="linux">Linux 小抄</a>
+      <a href="#sql" data-v="sql">SQL 小抄</a>
+    </nav>
+    <details class="toc" id="toc" open>
+      <summary>目錄</summary>
+      <ol id="tocList"></ol>
+    </details>
+  </aside>
+  <div class="content">
+
+  <!-- ===================== DOCKER ===================== -->
+  <article class="view" id="v-docker" data-view="docker">
+    <header class="post">
+      <h1>Docker 踩坑筆記：從 Dockerfile 到上版</h1>
+      <p class="lede">把專案容器化時踩過的坑，整理成一篇。範例都改成現在的寫法，但每個專案的結構不同，直接貼上前還是要依情況調整。</p>
+      <div class="meta"><time datetime="2024-04-11">2024-04-11</time><span class="tag">Docker</span><span class="tag">Compose</span><span class="tag">Nginx</span></div>
+    </header>
+
+    <section class="part" data-title="先畫架構">
+      <h2><small>01</small>先畫架構，再寫檔案</h2>
+      <p>動手寫 Dockerfile 之前，先把 compose 的結構想清楚：有哪些服務、彼此怎麼連、哪些資料要保留。這樣才知道哪些服務能直接用官方映像，哪些需要自己的 Dockerfile。畫一張圖是最快的方法。</p>
+    </section>
+
+    <section class="part" data-title="Dockerfile">
+      <h2><small>02</small>Dockerfile</h2>
+      <ul class="pts">
+        <li><b>依賴和程式碼分開複製。</b>Docker 是一層一層快取的，某一層的內容變了，後面每一層都要重做。先複製 <code>pom.xml</code> 或 <code>package.json</code> 裝好依賴，再複製程式碼，平常只改程式時就不用重裝依賴。</li>
+        <li><b><code>WORKDIR</code> 不用每次重指。</b>它對後面所有指令都有效。真正不會保留的是 <code>RUN cd</code>，每個 <code>RUN</code> 都是新的 shell，所以才常看到大家用 <code>&amp;&amp;</code> 把指令串在同一行。</li>
+        <li><b>build 壞了又知道原因，就直接刪掉重 build。</b>一直加 <code>RUN</code> 去補救沒有效率。要確定真的從頭來，加 <code>--no-cache</code>，不然可能還在用舊的快取層。</li>
+        <li><b>容器內中文亂碼，補上 locale。</b>很多基底映像沒有設定語系，加一行 <code>ENV LANG=C.UTF-8</code>。網頁輸出通常不受影響，但進容器看 log 或改檔案時會很痛苦。</li>
+        <li><b>映像沒有 vim 很正常。</b>需要就在 Dockerfile 裡裝，但正式環境的映像越小越好。<code>alpine</code> 版本小很多，不過它用 musl 而不是 glibc，少數套件會出問題。</li>
+      </ul>
+      <figure class="editor"><div class="tabs"><span>api/Dockerfile</span><button class="copy" type="button">複製</button></div><pre><code class="language-dockerfile"># 第一階段：編譯
+FROM maven:3.9-eclipse-temurin-21 AS build
+WORKDIR /src
+COPY pom.xml .
+RUN mvn -q dependency:go-offline     # 依賴單獨一層，pom 沒變就走快取
+COPY src ./src
+RUN mvn -q package -DskipTests
+
+# 第二階段：只帶 JRE 和 jar，映像小很多
+FROM eclipse-temurin:21-jre
+WORKDIR /app
+COPY --from=build /src/target/*.jar app.jar
+ENV LANG=C.UTF-8
+EXPOSE 8080
+ENTRYPOINT ["java", "-jar", "app.jar"]</code></pre></figure>
+      <figure class="editor"><div class="tabs"><span>web/Dockerfile</span><button class="copy" type="button">複製</button></div><pre><code class="language-dockerfile">FROM node:24-alpine AS build
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+# 前端打包完只是靜態檔案，交給 Nginx 就好
+FROM nginx:1.27-alpine
+COPY --from=build /app/dist /usr/share/nginx/html
+EXPOSE 80</code></pre></figure>
+    </section>
+
+    <section class="part" data-title="Compose">
+      <h2><small>03</small>Docker Compose</h2>
+      <figure class="editor"><div class="tabs"><span>compose.yaml</span><button class="copy" type="button">複製</button></div><pre><code class="language-yaml">services:
+  api:
+    build: ./api
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy   # 等 DB 真的能連，才啟動 api
+    networks: [backend]
+
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_PASSWORD: example
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      retries: 10
+    networks: [backend]
+
+volumes:
+  db-data:
+
+networks:
+  backend:</code></pre></figure>
+      <ul class="pts">
+        <li><b>不用再寫 <code>version</code>。</b>新版 Compose 會直接忽略它，舊教學裡的 <code>version: '3'</code> 可以拿掉。</li>
+        <li><b><code>depends_on</code> 只管啟動順序。</b>它不保證 DB 已經可以連線，AP 還是可能搶先啟動然後報錯。要搭配 <code>healthcheck</code> 和 <code>condition: service_healthy</code>。</li>
+        <li><b>除錯時先關掉自動重啟。</b><code>restart: unless-stopped</code> 適合大部分服務，但程式一啟動就掛時，容器會一直重啟，很難看到錯誤訊息。在容器裡跑 Node 的話，要用 <code>pm2-runtime</code> 而不是 <code>pm2</code>，否則程序跑到背景，容器會以為主程式結束了。</li>
+        <li><b>build 階段連不到其他服務。</b>Compose 的網路只在容器執行時存在，所以 build 時就要連資料庫的步驟（例如安裝套件後自動跑的初始化腳本）會出現 <code>getaddrinfo failed</code>。這類步驟要移到容器啟動時執行。</li>
+      </ul>
+    </section>
+
+    <section class="part" data-title="掛載的坑">
+      <h2><small>04</small>掛載的坑</h2>
+      <ul class="pts">
+        <li><b>掛進去的是同一份檔案。</b>bind mount 在容器裡改，本機的檔案也會跟著變，反過來也一樣，不用重啟容器。但 Nginx 這類只在啟動時讀設定的服務，改完要 reload 才會生效。</li>
+        <li><b>依賴目錄會被蓋掉。</b>把整個專案目錄掛進去時，宿主機上沒有 <code>node_modules</code>（Java 的 <code>target</code>、PHP 的 <code>vendor</code> 也一樣），掛上去會把映像裡裝好的依賴蓋成空的。替依賴目錄另外掛一個卷就能保留。</li>
+        <li><b>宿主機路徑不存在，Docker 會幫你建一個空目錄。</b>log 路徑寫錯，就多一個奇怪的資料夾；設定檔本機還沒寫就掛進去，容器裡會變成一個空目錄，服務直接起不來。掛之前先確認本機的檔案在。</li>
+        <li><b>單一檔案掛載，存檔後容器可能看不到。</b>單檔掛載綁的是那個檔案本身，有些編輯器存檔是先寫新檔再取代，容器裡看到的還是舊內容。掛整個目錄就沒有這個問題。另外，改了 compose 的 <code>volumes</code> 設定要重建容器，執行 <code>docker compose up -d</code> 會自動處理。</li>
+        <li><b>權限跟著宿主機。</b>掛進去的檔案權限以宿主機為準，在 Dockerfile 裡 <code>chown</code> 對執行時才掛上的路徑沒有作用。應用要寫入的目錄（log、暫存、上傳）要先在宿主機建好並給寫入權限。我遇過寄信套件找不到暫存目錄，最後是在掛載的 storage 底下建一個 <code>tmp</code> 並開放寫入才解決。</li>
+        <li><b>Windows 的換行會帶進容器。</b>從 Windows 掛進去的腳本常在行尾多出 <code>^M</code>（CRLF），shell 腳本會直接執行失敗。在專案加一個 <code>.gitattributes</code> 統一用 LF 最省事。</li>
+        <li><b>log 不掛，容器一刪就沒了。</b>官方建議把 log 輸出到 stdout，用 <code>docker compose logs</code> 看；需要保留成檔案就掛出來。官方 Nginx 映像的 log 檔看起來是空的，就是因為它已經把 log 導到 stdout 了。</li>
+      </ul>
+      <figure class="editor"><div class="tabs"><span>compose.yaml（開發用）</span><button class="copy" type="button">複製</button></div><pre><code class="language-yaml">services:
+  web:
+    build: ./web
+    volumes:
+      - ./web:/app            # 程式碼即時同步
+      - /app/node_modules     # 保留映像裡裝好的依賴，不被上一行蓋掉</code></pre></figure>
+      <figure class="editor"><div class="tabs"><span>.gitattributes</span><button class="copy" type="button">複製</button></div><pre><code class="language-plaintext">* text=auto eol=lf</code></pre></figure>
+    </section>
+
+    <section class="part" data-title="網路">
+      <h2><small>05</small>網路</h2>
+      <ul class="pts">
+        <li><b>服務名稱就是主機名。</b>在同一個 Compose 網路裡，Nginx 寫 <code>proxy_pass http://api:8080</code> 就連得到，不用查 IP。</li>
+        <li><b>透過 Docker 網路轉送時，Host 會變。</b>API 收到的 Host 會變成「服務名稱:port」，程式裡有依網域判斷的邏輯就會失準。轉送時把原本的 Host 帶過去；對外的 API 最好綁自己的網域，讓前端和瀏覽器都從同一個網域進來。</li>
+      </ul>
+      <figure class="editor"><div class="tabs"><span>nginx/default.conf</span><button class="copy" type="button">複製</button></div><pre><code class="language-nginx">location /api/ {
+    proxy_pass http://api:8080/;
+    proxy_set_header Host $host;                  # 保留瀏覽器送來的網域
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}</code></pre></figure>
+    </section>
+
+    <section class="part" data-title="排程">
+      <h2><small>06</small>排程</h2>
+      <p>容器裡通常沒有 cron。最簡單的做法是讓宿主機的 crontab 去觸發容器裡的指令。注意不要加 <code>-it</code>：cron 執行時沒有終端機，加了會直接失敗。有人覺得這樣「不夠 Docker」，另一個做法是開一個專門跑排程的容器。</p>
+      <figure class="editor"><div class="tabs"><span>crontab -e</span><button class="copy" type="button">複製</button></div><pre><code class="language-bash"># 每分鐘觸發一次容器內的排程，輸出寫進 log 方便查
+* * * * * docker exec app ./bin/run-scheduler &gt;&gt; /var/log/app-cron.log 2&gt;&amp;1</code></pre></figure>
+    </section>
+
+    <section class="part" data-title="上版">
+      <h2><small>07</small>上版</h2>
+      <figure class="editor"><div class="tabs"><span>deploy.sh</span><button class="copy" type="button">複製</button></div><pre><code class="language-bash">git pull
+# 只重建並替換有異動的服務，其他服務不受影響
+docker compose up -d --no-deps --build api</code></pre></figure>
+      <ul class="pts">
+        <li><b><code>docker restart</code> 不會換新映像。</b>它只是把同一個容器重開一次。「先 build 再 restart」看起來有更新，其實跑的還是舊程式，要用上面的 <code>up -d --build</code> 重建容器。</li>
+        <li><b>快取讓上版變快。</b>依賴和程式碼分開複製之後，大部分上版只會重做最後幾層。遇到行為怪異、懷疑是快取的問題時，再用 <code>--no-cache</code>。</li>
+        <li><b>重新 clone 之後服務異常，先清快取。</b>舊的框架快取檔還留在容器或掛載目錄裡，跟新程式對不上。清掉快取目錄通常就好了。</li>
+        <li><b>這樣上版會有幾秒中斷。</b>要做到不中斷，下一步是滾動更新：開多個實例，一台一台輪流換。</li>
+      </ul>
+    </section>
+
+    <section class="part" data-title="Windows">
+      <h2><small>08</small>Windows 的 Docker Desktop</h2>
+      <ul class="pts">
+        <li><b>家用版一直轉圈，先別照網路教學下 <code>-SwitchDaemon</code>。</b>它會切換到 Windows Container，但家用版不支援，切回去時常常直接報錯，最後只能重裝。</li>
+        <li><b>多半只是權限不足。</b>關掉 Docker Desktop，對圖示按右鍵用系統管理員執行就好。</li>
+        <li><b>Compose 專案要從命令列啟動。</b>啟動之後在 GUI 裡看得到。</li>
+      </ul>
+    </section>
+
+    <section class="part" data-title="常用命令">
+      <h2><small>09</small>常用命令</h2>
+      <figure class="editor"><div class="tabs"><span>cheatsheet.sh</span><button class="copy" type="button">複製</button></div><pre><code class="language-bash">docker compose up -d                   # 背景啟動
+docker compose down                    # 停止並移除容器
+docker compose ps                      # 看服務狀態
+docker compose logs -f api             # 追 api 的 log
+docker compose exec api sh             # 進入容器
+docker compose build --no-cache api    # 不用快取重 build 單一服務
+docker image ls                        # 看映像列表
+docker rmi &lt;image&gt;                     # 刪除映像
+docker rm -f &lt;container&gt;               # 強制停止並刪除容器
+docker system prune                    # 清掉沒在用的容器、網路與映像</code></pre></figure>
+    </section>
+
+    <section class="refs">
+      <h2>參考資料</h2>
+      <ul>
+        <li><a href="https://larrylu.blog/step-by-step-dockerize-your-app-ecd8940696f4" target="_blank" rel="noopener">Docker 實戰系列（一）：一步一步帶你 dockerize 你的應用</a></li>
+        <li><a href="https://myapollo.com.tw/blog/docker-compose-depends-on/" target="_blank" rel="noopener">談 docker compose 的 depends_on 設定怎麼使用</a></li>
+        <li><a href="https://yeasy.gitbook.io/docker_practice/image/dockerfile/workdir" target="_blank" rel="noopener">Docker 從入門到實踐：WORKDIR</a></li>
+        <li><a href="https://stackoverflow.com/questions/30043872/docker-compose-node-modules-not-present-in-a-volume-after-npm-install-succeeds" target="_blank" rel="noopener">node_modules 被掛載蓋掉的討論（Stack Overflow）</a></li>
+        <li><a href="https://ithelp.ithome.com.tw/articles/10277217" target="_blank" rel="noopener">刪除 image 重 build 要小心 cache</a></li>
+        <li><a href="https://michael-hsu.medium.com/%E5%9C%A8-docker-%E5%88%A9%E7%94%A8-nginx-%E9%83%A8%E7%BD%B2%E5%A4%9A%E5%80%8B-ssl-%E7%B6%B2%E7%AB%99-f42caa54f5c2" target="_blank" rel="noopener">在 Docker 利用 Nginx 部署多個 SSL 網站</a></li>
+      </ul>
+    </section>
+  </article>
+
+  <!-- ===================== LINUX ===================== -->
+  <article class="view" id="v-linux" data-view="linux" hidden>
+    <header class="post">
+      <h1>Linux 小抄</h1>
+      <p class="lede">維運主機時最常查的指令。前面加 <code>sudo</code> 的是需要 root 權限的指令，已經是 root 或設定好 sudoer 就可以省略。</p>
+      <div class="meta"><time datetime="2024-03-27">2024-03-27</time><span class="tag">Linux</span><span class="tag">Ubuntu</span><span class="tag">Shell</span></div>
+    </header>
+
+    <section class="part" data-title="系統">
+      <h2><small>01</small>系統與服務</h2>
+      <div class="table"><table>
+        <thead><tr><th>指令</th><th>用途</th></tr></thead>
+        <tbody>
+          <tr><td><code>cat /etc/os-release</code></td><td>看這台是哪個發行版、哪個版本</td></tr>
+          <tr><td><code>sudo systemctl restart nginx</code></td><td>管理系統服務，可換成 <code>start</code>、<code>stop</code>、<code>status</code></td></tr>
+          <tr><td><code>journalctl -u nginx -f</code></td><td>追某個服務的日誌</td></tr>
+          <tr><td><code>crontab -e</code> / <code>crontab -l</code></td><td>編輯／列出排程；加 <code>sudo</code> 改的是 root 的排程</td></tr>
+          <tr><td><code>grep CRON /var/log/syslog</code></td><td>查排程有沒有執行（Ubuntu）</td></tr>
+          <tr><td><code>free -h</code></td><td>記憶體用量</td></tr>
+          <tr><td><code>df -h</code></td><td>硬碟用量</td></tr>
+          <tr><td><code>du -sh *</code></td><td>目前目錄下每個項目各佔多少空間；加 <code>-a</code> 會列出所有檔案</td></tr>
+          <tr><td><code>timedatectl</code></td><td>看目前時間與時區</td></tr>
+          <tr><td><code>sudo timedatectl set-timezone Asia/Taipei</code></td><td>改時區</td></tr>
+        </tbody>
+      </table></div>
+      <p class="tip"><b>排程編輯器</b>　第一次執行 <code>crontab -e</code> 會問要用哪個編輯器，選錯了可以用 <code>select-editor</code> 重選，或直接 <code>EDITOR=vim crontab -e</code>。</p>
+    </section>
+
+    <section class="part" data-title="檔案與搜尋">
+      <h2><small>02</small>檔案、輸出與搜尋</h2>
+      <div class="table"><table>
+        <thead><tr><th>指令</th><th>用途</th></tr></thead>
+        <tbody>
+          <tr><td><code>指令 &gt; out.txt</code></td><td>把輸出寫進檔案，檔案已存在會被覆蓋</td></tr>
+          <tr><td><code>指令 &gt;&gt; out.txt</code></td><td>同上，但接在檔案後面</td></tr>
+          <tr><td><code>指令 &gt; out.txt 2&gt;&amp;1</code></td><td>連錯誤訊息一起寫進去</td></tr>
+          <tr><td><code>tail -f /var/log/syslog</code></td><td>即時看 log 新增的內容；大部分 log 都在 <code>/var/log</code></td></tr>
+          <tr><td><code>find / -name "*haha*" -type f</code></td><td>從根目錄找檔名包含 haha 的檔案</td></tr>
+          <tr><td><code>grep -rn "keyword" ./src</code></td><td>在目錄裡遞迴搜尋內文，<code>-n</code> 顯示行號</td></tr>
+          <tr><td><code>tree -L 2</code></td><td>用樹狀圖看目錄結構（要另外安裝）</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <section class="part" data-title="網路">
+      <h2><small>03</small>網路</h2>
+      <div class="table"><table>
+        <thead><tr><th>指令</th><th>用途</th></tr></thead>
+        <tbody>
+          <tr><td><code>ss -tulpn</code></td><td>看哪些 port 正在監聽、是哪個程式</td></tr>
+          <tr><td><code>ss -tulpn | grep :8080</code></td><td>看 8080 被誰佔用</td></tr>
+          <tr><td><code>netstat -tulpn | grep LISTEN</code></td><td>舊主機的寫法，新系統可能沒裝 netstat</td></tr>
+          <tr><td><code>curl -I https://example.com</code></td><td>只看回應的 header</td></tr>
+          <tr><td><code>curl -v https://example.com</code></td><td>看完整的請求與回應過程，除錯 SSL、轉址時好用</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <section class="part" data-title="Vim">
+      <h2><small>04</small>Vim 救命鍵</h2>
+      <div class="table"><table>
+        <thead><tr><th>按鍵</th><th>用途</th></tr></thead>
+        <tbody>
+          <tr><td><code>gg</code> / <code>G</code></td><td>跳到檔案開頭／結尾</td></tr>
+          <tr><td><code>/keyword</code></td><td>往下搜尋，<code>n</code> 跳到下一個</td></tr>
+          <tr><td><code>:wq</code></td><td>存檔並離開</td></tr>
+          <tr><td><code>:q!</code></td><td>不存檔直接離開</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <section class="part" data-title="安裝前">
+      <h2><small>05</small>裝套件之前</h2>
+      <p>網路教學常常附 <code>apt install -y</code>，<code>-y</code> 會自動同意所有變更。在跑了很久的舊主機上，它可能順手升級一堆相依套件。先不加 <code>-y</code>，看清楚要裝、要升級哪些東西再決定。</p>
+    </section>
+
+    <section class="refs">
+      <h2>參考資料</h2>
+      <ul>
+        <li><a href="https://askubuntu.com/questions/56683/where-is-the-cron-crontab-log" target="_blank" rel="noopener">Where is the cron / crontab log?（Ask Ubuntu）</a></li>
+        <li><a href="https://timkuo42.medium.com/%E5%A6%82%E4%BD%95%E4%BD%BF%E7%94%A8-systemctl-%E6%9F%A5%E7%9C%8B%E6%97%A5%E8%AA%8C-c8500b074dbe" target="_blank" rel="noopener">如何使用 systemctl 查看日誌</a></li>
+        <li><a href="https://charlie-c.me/post/curl/" target="_blank" rel="noopener">curl 顯示 header 等資訊</a></li>
+        <li><a href="https://wiki.freedomstu.com/books/linux-%E7%B3%BB%E7%B5%B1%E8%A8%98%E9%8C%84/page/linux-find" target="_blank" rel="noopener">使用 Linux find 尋找檔案與資料夾</a></li>
+      </ul>
+    </section>
+  </article>
+
+  <!-- ===================== SQL ===================== -->
+  <article class="view" id="v-sql" data-view="sql" hidden>
+    <header class="post">
+      <h1>SQL 小抄</h1>
+      <p class="lede">常用語法和自己犯過的錯，以 MySQL 為主。語法本身不難，難的是資料量變大之後，有些寫法會變成效能瓶頸，所以每段都順便記下對索引的影響。</p>
+      <div class="meta"><time datetime="2024-03-14">2024-03-14</time><span class="tag">MySQL</span><span class="tag">SQL</span><span class="tag">索引</span></div>
+    </header>
+
+    <section class="part" data-title="NULL 與引號">
+      <h2><small>01</small>NULL 與引號</h2>
+      <ul class="pts">
+        <li><b>判斷 NULL 要用 <code>IS NULL</code>。</b><code>= NULL</code> 永遠不成立。想撈「不等於某值」的資料時，NULL 也不會被撈出來，要另外用 <code>OR 欄位 IS NULL</code> 補上。</li>
+        <li><b>表名、欄位名不要加單引號。</b>單引號是字串，<code>WHERE 'created_at' &gt;= ...</code> 比的是字串本身，不會報錯，但結果完全不對。要括起來用反引號 <code>`created_at`</code>。我一開始就是這樣查了半天，最後才發現是引號。</li>
+        <li><b>MySQL 的雙引號預設也是字串。</b>網路上寫成 <code>"欄位名"</code> 的範例來自其他資料庫，在 MySQL 不要照抄。</li>
+        <li><b>不等於寫 <code>&lt;&gt;</code> 最通用。</b>MySQL 也接受 <code>!=</code>，但 <code>&lt;&gt;</code> 是標準寫法，換資料庫也能用。</li>
+      </ul>
+      <figure class="editor"><div class="tabs"><span>null.sql</span><button class="copy" type="button">複製</button></div><pre><code class="language-sql">-- 狀態不是 done 的訂單，連還沒有狀態的也一起撈
+SELECT * FROM orders
+WHERE status &lt;&gt; 'done' OR status IS NULL;</code></pre></figure>
+    </section>
+
+    <section class="part" data-title="日期查詢">
+      <h2><small>02</small>日期查詢</h2>
+      <ul class="pts">
+        <li><b>DATETIME 用「大於等於起日、小於隔天」。</b><code>BETWEEN '2024-03-01' AND '2024-03-31'</code> 只算到 31 號的 00:00:00，那天其他時間的資料都會漏掉。</li>
+        <li><b>函數套在常數那邊，不要套在欄位上。</b><code>WHERE DATE(created_at) = ...</code> 會讓欄位上的索引失效，資料一多就變成全表掃描。</li>
+        <li><b>Unix 時間戳要轉換。</b>欄位存的是整數，用 <code>UNIX_TIMESTAMP()</code> 把比較的日期轉成整數，欄位一樣用得到索引。</li>
+        <li><b>型態都對了還報錯，可能是資料本身有問題。</b>例如混進 <code>0000-00-00</code> 這類無效日期，新版 MySQL 的嚴格模式會拒絕。</li>
+      </ul>
+      <figure class="editor"><div class="tabs"><span>date.sql</span><button class="copy" type="button">複製</button></div><pre><code class="language-sql">-- 三月整個月（DATETIME 欄位）
+SELECT * FROM orders
+WHERE created_at &gt;= '2024-03-01'
+  AND created_at &lt;  '2024-04-01';
+
+-- 最近一個月
+SELECT * FROM orders
+WHERE created_at &gt;= CURDATE() - INTERVAL 1 MONTH;
+
+-- 欄位存的是 Unix 時間戳
+SELECT * FROM events
+WHERE ts &gt;= UNIX_TIMESTAMP('2024-03-01')
+  AND ts &lt;  UNIX_TIMESTAMP('2024-04-01');
+
+-- 型態轉換
+SELECT DATE(created_at);                                    -- DATETIME 轉 DATE
+SELECT DATE_FORMAT(created_at, '%Y-%m-%d');                 -- 轉成指定格式的字串
+SELECT STR_TO_DATE('2024-03-01 08:30:00', '%Y-%m-%d %H:%i:%s');  -- 字串轉日期</code></pre></figure>
+    </section>
+
+    <section class="part" data-title="型態與條件">
+      <h2><small>03</small>型態與條件</h2>
+      <ul class="pts">
+        <li><b>數字存成字串時，比大小要先轉型。</b>直接比字串，<code>'9' &gt; '12000'</code> 會成立。用 <code>CAST</code> 轉成數字比較，但這樣一樣用不到索引，長期還是應該把欄位改成數值型態。</li>
+        <li><b>多個值用 <code>IN</code>，條件可以直接運算。</b></li>
+        <li><b><code>CASE WHEN</code> 用在依條件回傳不同的值。</b></li>
+      </ul>
+      <figure class="editor"><div class="tabs"><span>where.sql</span><button class="copy" type="button">複製</button></div><pre><code class="language-sql">-- 字串欄位當數字比
+SELECT * FROM products WHERE CAST(code AS UNSIGNED) &gt; 12000;
+
+-- 多個值
+SELECT * FROM orders WHERE status IN ('paid', 'shipped');
+
+-- 兩個欄位相加後比較
+SELECT * FROM stock WHERE on_hand + reserved &lt; 100;
+
+-- 依金額分級
+SELECT id,
+       CASE WHEN amount &gt;= 10000 THEN '大額'
+            WHEN amount &gt;= 1000  THEN '中額'
+            ELSE '小額'
+       END AS level
+FROM orders;</code></pre></figure>
+    </section>
+
+    <section class="part" data-title="GROUP BY">
+      <h2><small>04</small>GROUP BY</h2>
+      <p>SELECT 裡的欄位要嘛出現在 GROUP BY 裡，要嘛被聚合函數包起來。DATETIME 只想按天統計時，SELECT 和 GROUP BY 要用同一個運算式。</p>
+      <figure class="editor"><div class="tabs"><span>daily.sql</span><button class="copy" type="button">複製</button></div><pre><code class="language-sql">SELECT DATE(created_at) AS day,
+       COUNT(*)         AS orders,
+       SUM(amount)      AS revenue
+FROM orders
+GROUP BY DATE(created_at)
+ORDER BY day;</code></pre></figure>
+    </section>
+
+    <section class="part" data-title="排除與子查詢">
+      <h2><small>05</small>排除資料與子查詢</h2>
+      <ul class="pts">
+        <li><b>排除「有關聯資料」的列，用 <code>NOT EXISTS</code>。</b>子查詢裡的 <code>SELECT 1</code> 只是佔位，<code>EXISTS</code> 只在乎有沒有資料，不在乎選了什麼欄位。</li>
+        <li><b>小心 <code>NOT IN</code> 遇到 NULL。</b>子查詢結果只要有一個 NULL，<code>NOT IN</code> 就會一筆都查不到，<code>NOT EXISTS</code> 沒有這個問題。</li>
+      </ul>
+      <figure class="editor"><div class="tabs"><span>not-exists.sql</span><button class="copy" type="button">複製</button></div><pre><code class="language-sql">-- 找出從來沒下過單的會員
+SELECT m.id, m.name
+FROM members m
+WHERE NOT EXISTS (
+  SELECT 1 FROM orders o WHERE o.member_id = m.id
+);</code></pre></figure>
+    </section>
+
+    <section class="part" data-title="UNION 與排序">
+      <h2><small>06</small>UNION 與排序分頁</h2>
+      <ul class="pts">
+        <li><b>欄位名稱不同但意義相同，用別名對齊再 <code>UNION ALL</code>。</b><code>UNION</code> 會去重複，比較慢；確定不會重複就用 <code>UNION ALL</code>。</li>
+        <li><b><code>ORDER BY</code> 在前，<code>LIMIT</code> 在後。</b>排序欄位有重複值時，分頁可能出現重複或漏掉的資料，要再加一個唯一欄位當第二排序條件。</li>
+      </ul>
+      <figure class="editor"><div class="tabs"><span>union-paging.sql</span><button class="copy" type="button">複製</button></div><pre><code class="language-sql">SELECT column1 AS id, column2 AS name FROM table1
+UNION ALL
+SELECT col1    AS id, col2    AS name FROM table2;
+
+-- 第三頁，每頁 20 筆；id 讓同一時間的資料順序固定
+SELECT id, title, publish_at
+FROM notices
+ORDER BY publish_at DESC, id DESC
+LIMIT 20 OFFSET 40;</code></pre></figure>
+    </section>
+
+    <section class="part" data-title="索引">
+      <h2><small>07</small>索引</h2>
+      <ul class="pts">
+        <li><b>常出現在 <code>WHERE</code>、<code>JOIN</code>、<code>ORDER BY</code> 的欄位，考慮加索引。</b></li>
+        <li><b>索引有代價。</b>寫入和更新會變慢，也會佔空間，不是越多越好。</li>
+        <li><b>複合索引看「最左前綴」。</b>等值條件的欄位放前面，範圍條件的放後面，跟 WHERE 裡寫的順序無關。</li>
+        <li><b>對欄位套函數或轉型，索引就用不到。</b>前面日期和字串轉數字的例子都是這個原因。</li>
+        <li><b>不確定就用 <code>EXPLAIN</code>。</b>看 <code>key</code> 有沒有用到預期的索引、<code>rows</code> 掃了多少列。</li>
+      </ul>
+      <figure class="editor"><div class="tabs"><span>index.sql</span><button class="copy" type="button">複製</button></div><pre><code class="language-sql">-- 常見查詢：WHERE status = 'published' AND publish_at &gt;= ...
+CREATE INDEX idx_status_publish ON notices (status, publish_at);
+
+EXPLAIN
+SELECT id, title FROM notices
+WHERE status = 'published'
+  AND publish_at &gt;= '2024-03-01';</code></pre></figure>
+    </section>
+
+    <section class="part" data-title="備份">
+      <h2><small>08</small>備份與還原</h2>
+      <p>InnoDB 加上 <code>--single-transaction</code>，可以在不鎖表的情況下拿到一致的備份。帳號權限不在一般的資料庫備份裡，要另外用 <code>SHOW GRANTS</code> 匯出。</p>
+      <figure class="editor"><div class="tabs"><span>backup.sh</span><button class="copy" type="button">複製</button></div><pre><code class="language-bash"># 備份單一資料庫（含預存程序與觸發器）
+mysqldump -u root -p --single-transaction --routines --triggers shop &gt; shop.sql
+
+# 還原
+mysql -u root -p shop &lt; shop.sql
+
+# 匯出某個帳號的權限
+mysql -u root -p -e "SHOW GRANTS FOR 'app'@'%';"</code></pre></figure>
+    </section>
+
+    <section class="refs">
+      <h2>參考資料</h2>
+      <ul>
+        <li><a href="https://chriskang028.medium.com/%E6%B7%B1%E5%85%A5%E6%B7%BA%E5%87%BA-sql-%E7%9A%84%E5%AD%90%E6%9F%A5%E8%A9%A2-subquery-%E5%90%84%E9%A0%85%E5%B8%B8%E7%94%A8%E6%8A%80%E5%B7%A7-8887731717f3" target="_blank" rel="noopener">深入淺出 SQL 的子查詢</a></li>
+        <li><a href="https://www.fooish.com/sql/group-by.html" target="_blank" rel="noopener">SQL GROUP BY 教學</a></li>
+        <li><a href="https://blog.twjoin.com/mysql-%E4%B8%AD-order-by-%E8%88%87-limit-%E5%90%8C%E6%99%82%E4%BD%BF%E7%94%A8%E5%B0%8E%E8%87%B4%E4%BA%82%E5%BA%8F-a6a561e9830d" target="_blank" rel="noopener">MySQL 中 ORDER BY 與 LIMIT 同時使用導致亂序</a></li>
+        <li><a href="https://code.yidas.com/mysqldump/" target="_blank" rel="noopener">Mysqldump 備份與還原資料庫指令範例</a></li>
+      </ul>
+    </section>
+  </article>
+  </div>
+</div>
+
+<button class="theme-btn" id="themeBtn" aria-label="切換主題" aria-haspopup="menu" aria-expanded="false" aria-controls="themeMenu"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.7-.9 1.4-1.8-.3-.9.3-1.8 1.3-1.8H17a4 4 0 0 0 4-4c0-5-4-8.4-9-8.4z"/><circle cx="7.5" cy="11" r="1.2" fill="currentColor"/><circle cx="10" cy="7" r="1.2" fill="currentColor"/><circle cx="15" cy="7" r="1.2" fill="currentColor"/></svg><span id="themeName">主題</span></button>
+<div class="theme-menu" id="themeMenu" role="menu" aria-label="主題" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/dockerfile.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/nginx.min.js"></script>
+<script>
+/* ---------- views (hash routing) ---------- */
+(function(){
+  const views=[...document.querySelectorAll(".view")],links=[...document.querySelectorAll(".notes a")];
+  function show(){
+    const h=(location.hash||"").slice(1),name=views.some(v=>v.dataset.view===h)?h:"docker";
+    views.forEach(v=>v.hidden=v.dataset.view!==name);
+    links.forEach(a=>a.dataset.v===name?a.setAttribute("aria-current","page"):a.removeAttribute("aria-current"));
+  }
+  window.addEventListener("hashchange",()=>{show();window.scrollTo(0,0)});
+  show();
+  /* table of contents for the open note: buttons, so the hash stays a view name */
+  function buildToc(view){
+    const list=document.getElementById("tocList");list.innerHTML="";
+    view.querySelectorAll("section.part").forEach(sec=>{
+      const li=document.createElement("li"),b=document.createElement("button");b.type="button";b.textContent=sec.dataset.title;
+      b.onclick=()=>{let reduce=false;try{reduce=matchMedia("(prefers-reduced-motion: reduce)").matches}catch(e){}sec.scrollIntoView({behavior:reduce?"auto":"smooth",block:"start"})};
+      li.appendChild(b);list.appendChild(li);
+    });
+  }
+  buildToc(views.find(v=>!v.hidden));
+  window.addEventListener("hashchange",()=>buildToc(views.find(v=>!v.hidden)));
+  try{if(matchMedia("(max-width:860px)").matches)document.getElementById("toc").open=false}catch(e){}
+  /* copy buttons */
+  document.querySelectorAll(".copy").forEach(btn=>btn.addEventListener("click",()=>{
+    const code=btn.closest(".editor").querySelector("code"),done=t=>{btn.textContent=t;setTimeout(()=>btn.textContent="複製",1500)};
+    const fallback=()=>{const r=document.createRange();r.selectNodeContents(code);const s=getSelection();s.removeAllRanges();s.addRange(r);done("已選取，請按複製")};
+    try{navigator.clipboard.writeText(code.innerText).then(()=>done("已複製"),fallback)}catch(e){fallback()}
+  }));
+  if(window.hljs){try{hljs.highlightAll()}catch(e){}}
+})();
+
+/* ---------- theme switcher ---------- */
+(function(){
+const K=["base","mantle","crust","s0","s1","text","sub","ov","red","peach","yellow","green","teal","sky","blue","lav","mauve","pink"];
+const T={
+"GitHub Light":["light","#ffffff #f6f8fa #eef1f4 #eaeef2 #d0d7de #1f2328 #424a53 #6e7781 #cf222e #bc4c00 #9a6700 #116329 #0a7a72 #0550ae #0969da #6639ba #8250df #bf3989",["#0969da","#8250df","#bf3989","#bc4c00"],["#ffffff","#f6f8fa","#0969da","#8250df"]],
+"Solarized Light":["light","#fdf6e3 #eee8d5 #e6dfc8 #e9e2cb #d6cfb7 #4b5f65 #586e75 #7d8b8c #dc322f #cb4b16 #946f00 #6b7a00 #1f8a82 #1f6fae #268bd2 #6c71c4 #6c71c4 #d33682",["#b58900","#cb4b16","#dc322f","#d33682","#6c71c4","#268bd2","#2aa198"],["#fdf6e3","#eee8d5","#268bd2","#b58900"]],
+"VS Code Dark+":["dark","#1e1e1e #181818 #111111 #2d2d2d #3c3c3c #d4d4d4 #b0b0b0 #808080 #f44747 #ce9178 #dcdcaa #b5cea8 #4ec9b0 #9cdcfe #569cd6 #9cdcfe #c586c0 #d16969",["#007acc","#569cd6","#4ec9b0","#dcdcaa","#ce9178","#c586c0"],["#1e1e1e","#252526","#007acc","#3794ff"]],
+"Catppuccin Mocha":["dark","#1e1e2e #181825 #11111b #313244 #45475a #cdd6f4 #a6adc8 #7f849c #f38ba8 #fab387 #f9e2af #a6e3a1 #94e2d5 #89dceb #89b4fa #b4befe #cba6f7 #f5c2e7",["#cba6f7","#f5c2e7","#fab387","#f9e2af","#94e2d5","#89b4fa","#b4befe"],["#1e1e2e","#313244","#cba6f7","#f5c2e7"]],
+"Dracula":["dark","#282a36 #21222c #191a21 #44475a #565a72 #f8f8f2 #c3c6d4 #8a93c2 #ff5555 #ffb86c #f1fa8c #50fa7b #8be9fd #8be9fd #9aa5ff #bd93f9 #bd93f9 #ff79c6",["#6272a4","#bd93f9","#ff79c6","#8be9fd","#50fa7b"],["#282a36","#44475a","#bd93f9","#ff79c6"]],
+"One Dark":["dark","#282c34 #21252b #1b1f23 #3e4451 #4b5263 #abb2bf #9da5b4 #7f848e #e06c75 #d19a66 #e5c07b #98c379 #56b6c2 #56b6c2 #61afef #8fa8f0 #c678dd #e48ec7",["#c678dd","#61afef","#56b6c2","#98c379"],["#282c34","#21252b","#61afef","#c678dd"]],
+"Monokai":["dark","#272822 #1e1f1c #171814 #3e3d32 #49483e #f8f8f2 #cfcfc2 #8f8a72 #f92672 #fd971f #e6db74 #a6e22e #66d9ef #66d9ef #66d9ef #ae81ff #ae81ff #f92672",["#f92672","#fd971f","#e6db74","#a6e22e","#66d9ef","#ae81ff"],["#272822","#3e3d32","#f92672","#a6e22e"]],
+"Tokyo Night":["dark","#1a1b26 #16161e #111118 #292e42 #3b4261 #c0caf5 #a9b1d6 #737aa2 #f7768e #ff9e64 #e0af68 #9ece6a #73daca #7dcfff #7aa2f7 #9aa5ce #bb9af7 #f4a7d0",["#3d59a1","#7aa2f7","#bb9af7","#f7768e"],["#1a1b26","#24283b","#7aa2f7","#bb9af7"]],
+"Nord":["dark","#2e3440 #292e39 #242933 #3b4252 #434c5e #eceff4 #d8dee9 #8f9bb3 #bf616a #d08770 #ebcb8b #a3be8c #8fbcbb #88c0d0 #81a1c1 #a3b5d6 #b48ead #c895bf",["#5e81ac","#81a1c1","#88c0d0","#8fbcbb"],["#2e3440","#3b4252","#88c0d0","#5e81ac"]],
+"Gruvbox Dark":["dark","#282828 #1d2021 #161819 #3c3836 #504945 #ebdbb2 #d5c4a1 #a89984 #fb4934 #fe8019 #fabd2f #b8bb26 #8ec07c #83a598 #83a598 #a8b5c0 #d3869b #d3869b",["#fb4934","#fe8019","#fabd2f","#b8bb26","#8ec07c"],["#282828","#3c3836","#fabd2f","#fe8019"]],
+"Solarized Dark":["dark","#002b36 #00252f #001e26 #073642 #0d4a59 #93a1a1 #839496 #6c8389 #dc322f #cb4b16 #b58900 #859900 #2aa198 #2aa198 #268bd2 #6c71c4 #6c71c4 #d33682",["#b58900","#cb4b16","#dc322f","#d33682","#6c71c4","#268bd2","#2aa198"],["#002b36","#073642","#268bd2","#b58900"]],
+"GitHub Dark":["dark","#0d1117 #161b22 #010409 #21262d #30363d #e6edf3 #b1bac4 #8b949e #ff7b72 #ffa657 #e3b341 #7ee787 #56d4dd #79c0ff #58a6ff #a5b4fc #d2a8ff #ff9bce",["#1f6feb","#58a6ff","#a371f7","#db61a2"],["#0d1117","#161b22","#58a6ff","#238636"]]};
+const KEY="theme-demo-v1",root=document.documentElement,btn=document.getElementById("themeBtn"),menu=document.getElementById("themeMenu"),label=document.getElementById("themeName");
+function apply(n){
+  if(!T[n])n="VS Code Dark+";
+  const [scheme,vals,grad]=T[n],v=vals.split(" ");
+  K.forEach((k,i)=>root.style.setProperty("--"+k,v[i]));
+  root.style.colorScheme=scheme;
+  document.getElementById("rainbow").style.background=`linear-gradient(90deg,${grad.join(",")})`;
+  label.textContent=n;
+  menu.querySelectorAll("button").forEach(b=>b.setAttribute("aria-checked",String(b.dataset.t===n)));
+}
+function addGroup(title,scheme){
+  const p=document.createElement("p");p.textContent=title;p.setAttribute("aria-hidden","true");menu.appendChild(p);
+  Object.keys(T).filter(n=>T[n][0]===scheme).forEach(n=>{
+    const m=T[n][3],b=document.createElement("button");
+    b.setAttribute("role","menuitemradio");b.dataset.t=n;b.tabIndex=-1;
+    b.innerHTML=`<span class="pv" style="background:${m[0]}" aria-hidden="true"><b style="background:${m[1]}"></b><s style="top:5px;width:16px;background:${m[3]}"></s><s style="top:10px;width:22px;background:${m[2]};opacity:.8"></s><u style="background:${m[2]}"></u></span>${n}`;
+    b.onclick=()=>{apply(n);try{localStorage.setItem(KEY,n)}catch(e){}close()};
+    menu.appendChild(b);
+  });
+}
+addGroup("淺色","light");addGroup("深色","dark");
+const items=()=>[...menu.querySelectorAll("button")];
+function open(){menu.hidden=false;btn.setAttribute("aria-expanded","true");(menu.querySelector('[aria-checked="true"]')||items()[0]).focus()}
+function close(){menu.hidden=true;btn.setAttribute("aria-expanded","false");btn.focus()}
+btn.onclick=()=>menu.hidden?open():close();
+menu.addEventListener("keydown",e=>{
+  const list=items(),i=list.indexOf(document.activeElement);
+  if(e.key==="ArrowDown"){e.preventDefault();list[(i+1)%list.length].focus()}
+  else if(e.key==="ArrowUp"){e.preventDefault();list[(i-1+list.length)%list.length].focus()}
+  else if(e.key==="Home"){e.preventDefault();list[0].focus()}
+  else if(e.key==="End"){e.preventDefault();list[list.length-1].focus()}
+  else if(e.key==="Tab"){close()}
+});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!menu.hidden)close()});
+document.addEventListener("click",e=>{if(!menu.hidden&&!menu.contains(e.target)&&!btn.contains(e.target)){menu.hidden=true;btn.setAttribute("aria-expanded","false")}});
+let saved=null;try{saved=localStorage.getItem(KEY)}catch(e){}
+let sys="GitHub Light";try{if(matchMedia("(prefers-color-scheme: dark)").matches)sys="VS Code Dark+"}catch(e){}
+const forced=root.getAttribute("data-theme");
+apply(saved||(forced==="dark"?"VS Code Dark+":forced==="light"?"GitHub Light":sys));
+})();
+</script>
+
+</body>
+</html>
