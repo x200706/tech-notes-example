@@ -2,7 +2,7 @@
 
 一個模擬部落格的靜態網站，用來呈現技術文件，並展示主題切換功能。內容是我過去整理的 Docker、Linux、SQL 學習筆記，重新校正後放上來。
 
-線上展示：https://<你的 GitHub 帳號>.github.io/tech-notes/
+線上展示：https://x200706.github.io/tech-notes-example/
 
 ## 內容
 
@@ -30,8 +30,8 @@
 ## 本機預覽
 
 ```bash
-git clone https://github.com/<你的 GitHub 帳號>/tech-notes.git
-cd tech-notes
+git clone https://github.com/x200706/tech-notes-example.git
+cd tech-notes-example
 python3 -m http.server 8000
 # 打開 http://localhost:8000
 ```
